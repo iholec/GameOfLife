@@ -3,23 +3,23 @@
 #include <string>
 #include <iostream>
 
-GOLField::GOLField(char ** read_field, const int width, const int height)
+GOLField::GOLField(bool ** read_field, const int width, const int height)
 {
-	field_ = new char * [height + 1];
-	field_minus_one_ = new char * [height + 1];
-	height_ = height;//todo remove
-	width_ = width;//todo remove
+	field_ = new bool * [height + 1];
+	field_minus_one_ = new bool * [height + 1];
+	height_ = height;
+	width_ = width;
 
 	for (int i = 0; i < height; ++i)
 	{
-		field_[i] = new char[width + 1];
-		field_minus_one_[i] = new char[width + 1];
-		strcpy_s(field_[i], width + 1, read_field[i]);//todo improve
-		strcpy_s(field_minus_one_[i], width + 1, read_field[i]);//todo improve
+		field_[i] = new bool[width + 1];
+		field_minus_one_[i] = new bool[width + 1];
+		memcpy(field_[i], read_field[i], width * sizeof(bool));
+		memcpy(field_minus_one_[i], read_field[i], width * sizeof(bool));
 	}
 }
 
-char ** GOLField::life(const int generations) const
+bool ** GOLField::life(const int generations) const
 {
 	for(int gen = 0; gen < generations; ++gen)
 	{
@@ -29,56 +29,32 @@ char ** GOLField::life(const int generations) const
 			{
 				int neighbors = 0;
 
-				if (field_minus_one_[(i - 1 + height_) % height_][j] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[(i + 1 + height_) % height_][j] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[i][(j - 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[i][(j + 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[(i - 1 + height_) % height_][(j - 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[(i + 1 + height_) % height_][(j + 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[(i - 1 + height_) % height_][(j + 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
-				if (field_minus_one_[(i + 1 + height_) % height_][(j - 1 + width_) % width_] == 'x')
-				{
-					++neighbors;
-				}
+				neighbors += field_minus_one_[(i - 1 + height_) % height_][j];
+				neighbors += field_minus_one_[(i + 1 + height_) % height_][j];
+				neighbors += field_minus_one_[i][(j - 1 + width_) % width_];
+				neighbors += field_minus_one_[i][(j + 1 + width_) % width_];
+				neighbors += field_minus_one_[(i - 1 + height_) % height_][(j - 1 + width_) % width_];
+				neighbors += field_minus_one_[(i + 1 + height_) % height_][(j + 1 + width_) % width_];
+				neighbors += field_minus_one_[(i - 1 + height_) % height_][(j + 1 + width_) % width_];
+				neighbors += field_minus_one_[(i + 1 + height_) % height_][(j - 1 + width_) % width_];
 
-				if (field_minus_one_[i][j] == '.')
+				if (!field_minus_one_[i][j])
 				{
 					//Birth: A dead cell with exactly three live neighbors becomes a live cell.
 
 					if (neighbors == 3)
 					{
-						field_[i][j] = 'x';
+						field_[i][j] = true;
 					}
 				}
-				else if (field_minus_one_[i][j] == 'x')
+				else if (field_minus_one_[i][j])
 				{
 					//Survival: A live cell with two or three live neighbors stays alive.
 					//Death: A live cell with four or more neighbors dies from overpopulation, with one or none neighbors dies from isolation.
 					//-> if not 2 or 3 then die
 					if (!(neighbors == 3 || neighbors == 2))
 					{
-						field_[i][j] = '.';
+						field_[i][j] = false;
 					}
 				}
 			}
@@ -86,8 +62,7 @@ char ** GOLField::life(const int generations) const
 
 		for (int a = 0; a < height_; ++a)
 		{
-			strcpy_s(field_minus_one_[a], width_ + 1, field_[a]);//todo improve
-			//std::cout << field_[a] << std::endl;
+			memcpy(field_minus_one_[a], field_[a], width_ * sizeof(char));
 		}
 	}
 	return field_;

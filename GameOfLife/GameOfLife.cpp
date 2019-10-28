@@ -105,13 +105,16 @@ int main(int argc, char** argv)
 				ss.str(""); // clear the stringstream
 				ss.clear(); // clear the state flags for another conversion
 
-				char ** board = new char * [height + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
+				bool ** board = new bool * [height + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
 
 				for (int i = 0; i < height; ++i)
 				{
-					board[i] = new char[width + 1];
+					board[i] = new bool[width + 1];
 					std::getline(gol_file_in, line);
-					strcpy_s(board[i], width + 1, line.c_str());//todo improve
+					for(int x = 0; x < width; ++x)
+					{
+						board[i][x] = (line[x] == 'x');
+					}
 					//std::cout << line << '\n';
 				}
 
@@ -147,7 +150,12 @@ int main(int argc, char** argv)
 					std::ofstream gol_file_out(save_name);
 					for (int i = 0; i < height; ++i)
 					{
-						gol_file_out << board[i] << '\n';
+						for (int x = 0; x < width; ++x)
+						{
+							board[i][x] ? gol_file_out << 'x' : gol_file_out << '.';
+						}
+
+						gol_file_out << '\n';
 					}
 
 					gol_file_out.close();
