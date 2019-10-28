@@ -30,11 +30,17 @@ int main(int argc, char** argv)
 {
 	std::string load_name;
 	std::string save_name;
+
 	int generations;
 	int width;
 	int height;
 
-	std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
+	bool time_measure = false;
+	bool is_sequential = false;
+
+	std::chrono::high_resolution_clock::time_point time_start;
+	std::chrono::high_resolution_clock::time_point time_end;
+	std::chrono::high_resolution_clock::duration duration;
 
 	//read argv
 	std::stringstream ss;
@@ -60,16 +66,21 @@ int main(int argc, char** argv)
 				++i;
 			}
 			else if (arg == "--measure") {
-				bool time_measure = true;
+				time_measure = true;
 			}
 			else if (arg == "--mode") {
 				std::string mode(argv[i + 1]);
 				if (mode == "seq")
 				{
-					bool is_sequential = true;
+					is_sequential = true;
 				}
 				++i;
 			}
+		}
+
+		if(time_measure)
+		{
+			time_start = std::chrono::high_resolution_clock::now();
 		}
 
 		//load file 
@@ -95,36 +106,43 @@ int main(int argc, char** argv)
 				ss.str(""); // clear the stringstream
 				ss.clear(); // clear the state flags for another conversion
 
-				char ** board = new char * [height + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
+				char * board = new char [(width * height) + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
+				board[width * height] = '\0';
 
-				for (int i = 0; i < height; ++i)
+				for (int i = 0; i < (width * height); i += width)
 				{
-					board[i] = new char[width + 1];
 					std::getline(gol_file_in, line);
-					strcpy_s(board[i], width + 1, line.c_str());//todo improve
-					//std::cout << line << '\n';
+					std::memcpy(board + i, line.c_str(), width * sizeof(char));
 				}
+
+				//std::cout << board;
 
 				gol_file_in.close();
 
 				//init time
-				std::chrono::high_resolution_clock::time_point time_end = std::chrono::high_resolution_clock::now();
-				std::chrono::high_resolution_clock::duration duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration) << "; ";
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration) << "; ";
 
-				time_start = std::chrono::high_resolution_clock::now();
+					time_start = std::chrono::high_resolution_clock::now();
+				}
 
 				//create and compute gol
-				GOLField* golf = new GOLField(board, width, height);
-				board = golf->life(generations);
+				//GOLField* golf = new GOLField(board, width, height);
+				//board = golf->life(generations);
 
 				//kernel time
-				time_end = std::chrono::high_resolution_clock::now();
-				duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration) << "; ";
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration) << "; ";
 
-				time_start = std::chrono::high_resolution_clock::now();
-				
+					time_start = std::chrono::high_resolution_clock::now();
+				}
+
 				//write to file
 				if (!save_name.empty())
 				{
@@ -137,12 +155,15 @@ int main(int argc, char** argv)
 					gol_file_out.close();
 				}
 
-				delete golf;
+				//delete golf;
 
 				//finalize time
-				time_end = std::chrono::high_resolution_clock::now();
-				duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration);
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration);
+				}
 			}
 
 			else std::cout << "Unable to open file";
