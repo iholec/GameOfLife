@@ -1,0 +1,8 @@
+﻿  stdafx.cpp
+  GameOfLife.cpp
+  GOLField.cpp
+  Generating code
+  All 243 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  Finished generating code
+  GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\Release\GameOfLife.exe
+  GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\Release\GameOfLife.pdb (Full PDB)

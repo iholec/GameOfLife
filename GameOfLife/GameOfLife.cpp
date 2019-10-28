@@ -34,7 +34,12 @@ int main(int argc, char** argv)
 	int width;
 	int height;
 
-	std::chrono::high_resolution_clock::time_point time_start = std::chrono::high_resolution_clock::now();
+	bool time_measure = false;
+	bool is_sequential = false;
+
+	std::chrono::high_resolution_clock::time_point time_start;
+	std::chrono::high_resolution_clock::time_point time_end;
+	std::chrono::high_resolution_clock::duration duration;
 
 	//read argv
 	std::stringstream ss;
@@ -60,16 +65,21 @@ int main(int argc, char** argv)
 				++i;
 			}
 			else if (arg == "--measure") {
-				bool time_measure = true;
+				time_measure = true;
 			}
 			else if (arg == "--mode") {
 				std::string mode(argv[i + 1]);
 				if (mode == "seq")
 				{
-					bool is_sequential = true;
+					is_sequential = true;
 				}
 				++i;
 			}
+		}
+
+		if (time_measure)
+		{
+			time_start = std::chrono::high_resolution_clock::now();
 		}
 
 		//load file 
@@ -108,22 +118,28 @@ int main(int argc, char** argv)
 				gol_file_in.close();
 
 				//init time
-				std::chrono::high_resolution_clock::time_point time_end = std::chrono::high_resolution_clock::now();
-				std::chrono::high_resolution_clock::duration duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration) << "; ";
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration) << "; ";
 
-				time_start = std::chrono::high_resolution_clock::now();
+					time_start = std::chrono::high_resolution_clock::now();
+				}
 
 				//create and compute gol
 				GOLField* golf = new GOLField(board, width, height);
 				board = golf->life(generations);
 
 				//kernel time
-				time_end = std::chrono::high_resolution_clock::now();
-				duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration) << "; ";
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration) << "; ";
 
-				time_start = std::chrono::high_resolution_clock::now();
+					time_start = std::chrono::high_resolution_clock::now();
+				}
 				
 				//write to file
 				if (!save_name.empty())
@@ -140,9 +156,12 @@ int main(int argc, char** argv)
 				delete golf;
 
 				//finalize time
-				time_end = std::chrono::high_resolution_clock::now();
-				duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
-				std::cout << format_time(duration);
+				if (time_measure)
+				{
+					time_end = std::chrono::high_resolution_clock::now();
+					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
+					std::cout << format_time(duration);
+				}
 			}
 
 			else std::cout << "Unable to open file";
