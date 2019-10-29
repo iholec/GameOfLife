@@ -7,7 +7,7 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-#include "GOLField.h"
+//#include "GOLField.h"
 
 
 
@@ -27,7 +27,7 @@ std::string format_time(std::chrono::high_resolution_clock::duration time)
 
 
 //width = x, height = y
-int main(int argc, char** argv)
+int main(const int argc, char** argv)
 {
 	std::string load_name;
 	std::string save_name;
@@ -53,7 +53,8 @@ int main(int argc, char** argv)
 				load_name = argv[i + 1];
 				++i;
 			}
-			else if (arg == "--generations") {
+			else if (arg == "--generations") 
+			{
 				ss << argv[i + 1];
 				ss >> generations;
 
@@ -61,14 +62,17 @@ int main(int argc, char** argv)
 				ss.clear(); // clear the state flags for another conversion
 				++i;
 			}
-			else if (arg == "--save") {
+			else if (arg == "--save") 
+			{
 				save_name = argv[i + 1];
 				++i;
 			}
-			else if (arg == "--measure") {
+			else if (arg == "--measure") 
+			{
 				time_measure = true;
 			}
-			else if (arg == "--mode") {
+			else if (arg == "--mode") 
+			{
 				std::string mode(argv[i + 1]);
 				if (mode == "seq")
 				{
@@ -84,7 +88,7 @@ int main(int argc, char** argv)
 		}
 
 		//load file 
-		if(!load_name.empty())//todo testen ob problem macht
+		if(!load_name.empty())
 		{
 			std::string line;
 			std::ifstream gol_file_in(load_name);
@@ -106,15 +110,20 @@ int main(int argc, char** argv)
 				ss.str(""); // clear the stringstream
 				ss.clear(); // clear the state flags for another conversion
 
-				bool ** board = new bool * [height + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
+				bool ** board = new bool * [height + 1];
+				bool ** board_minus_one = new bool *[height + 1];
 
 				for (int i = 0; i < height; ++i)
 				{
 					board[i] = new bool[width + 1];
+					board_minus_one[i] = new bool[width + 1];
 					std::getline(gol_file_in, line);
+
 					for(int x = 0; x < width; ++x)
 					{
 						board[i][x] = (line[x] == 'x');
+						board_minus_one[i][x] = (line[x] == 'x');
+
 					}
 					//std::cout << line << '\n';
 				}
@@ -131,9 +140,56 @@ int main(int argc, char** argv)
 					time_start = std::chrono::high_resolution_clock::now();
 				}
 
-				//create and compute gol
-				GOLField* golf = new GOLField(board, width, height);
-				board = golf->life(generations);
+				//compute gol
+				for (int gen = 0; gen < generations; ++gen)
+				{
+					for (int i = 0; i < height; ++i)
+					{
+						const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+						const int i_plus = i + 1 < height ? i + 1 : 0;
+
+						for (int j = 0; j < width; ++j)
+						{
+							int neighbors = 0;
+
+							const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+							const int j_plus = j + 1 < width ? j + 1 : 0;
+
+							neighbors += board_minus_one[i_minus][j];
+							neighbors += board_minus_one[i_plus][j];
+							neighbors += board_minus_one[i][j_minus];
+							neighbors += board_minus_one[i][j_plus];
+							neighbors += board_minus_one[i_minus][j_minus];
+							neighbors += board_minus_one[i_plus][j_plus];
+							neighbors += board_minus_one[i_minus][j_plus];
+							neighbors += board_minus_one[i_plus][j_minus];
+
+							if (!board_minus_one[i][j])
+							{
+								//Birth: A dead cell with exactly three live neighbors becomes a live cell.
+								if (neighbors == 3)
+								{
+									board[i][j] = true;
+								}
+							}
+							else
+							{
+								//Survival: A live cell with two or three live neighbors stays alive.
+								//Death: A live cell with four or more neighbors dies from overpopulation, with one or none neighbors dies from isolation.
+								//-> if not 2 or 3 then die
+								if (!(neighbors == 3 || neighbors == 2))
+								{
+									board[i][j] = false;
+								}
+							}
+						}
+					}
+
+					for (int a = 0; a < height; ++a)
+					{
+						memcpy(board_minus_one[a], board[a], width * sizeof(char));
+					}
+				}
 
 				//kernel time
 				if (time_measure)
@@ -163,7 +219,15 @@ int main(int argc, char** argv)
 					gol_file_out.close();
 				}
 
-				delete golf;
+				//delete it all
+				//Free each sub-array
+				for (int i = 0; i < height; ++i) {
+					delete[] board[i];
+					delete[] board_minus_one[i];
+				}
+				//Free the array of pointers
+				delete[] board;
+				delete[] board_minus_one;
 
 				//finalize time
 				if (time_measure)
