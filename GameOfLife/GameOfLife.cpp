@@ -11,7 +11,8 @@
 
 
 
-std::string format_time(std::chrono::high_resolution_clock::duration time) {
+std::string format_time(std::chrono::high_resolution_clock::duration time) 
+{
 	std::chrono::hours h = std::chrono::duration_cast<std::chrono::hours>(time);
 	time -= h;
 	std::chrono::minutes m = std::chrono::duration_cast<std::chrono::minutes>(time);
@@ -148,6 +149,7 @@ int main(int argc, char** argv)
 				if (!save_name.empty())
 				{
 					std::ofstream gol_file_out(save_name);
+					gol_file_out << width << "," << height << '\n';
 					for (int i = 0; i < height; ++i)
 					{
 						for (int x = 0; x < width; ++x)

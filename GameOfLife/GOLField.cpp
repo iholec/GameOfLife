@@ -25,15 +25,15 @@ bool ** GOLField::life(const int generations) const
 	{
 		for (int i = 0; i < height_; ++i)
 		{ 
-			
-			const int i_minus = i >= 0 ? i : height_ - 1;
-			const int i_plus = i < height_ ? i : 0;
+			const int i_minus = i - 1 >= 0 ? i - 1 : height_ - 1;
+			const int i_plus = i + 1 < height_ ? i + 1 : 0;
 
 			for (int j = 0; j < width_; ++j)
 			{
 				int neighbors = 0;
-				const int j_minus = j >= 0 ? j : width_ - 1;
-				const int j_plus = i < width_ ? j : 0;
+
+				const int j_minus = j - 1 >= 0 ? j - 1 : width_ - 1;
+				const int j_plus = j + 1 < width_ ? j + 1 : 0;
 
 				neighbors += field_minus_one_[i_minus][j];
 				neighbors += field_minus_one_[i_plus][j];
@@ -47,13 +47,12 @@ bool ** GOLField::life(const int generations) const
 				if (!field_minus_one_[i][j])
 				{
 					//Birth: A dead cell with exactly three live neighbors becomes a live cell.
-
 					if (neighbors == 3)
 					{
 						field_[i][j] = true;
 					}
 				}
-				else if (field_minus_one_[i][j])
+				else
 				{
 					//Survival: A live cell with two or three live neighbors stays alive.
 					//Death: A live cell with four or more neighbors dies from overpopulation, with one or none neighbors dies from isolation.
