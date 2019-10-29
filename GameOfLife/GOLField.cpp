@@ -24,19 +24,25 @@ bool ** GOLField::life(const int generations) const
 	for(int gen = 0; gen < generations; ++gen)
 	{
 		for (int i = 0; i < height_; ++i)
-		{
+		{ 
+			
+			const int i_minus = i >= 0 ? i : height_ - 1;
+			const int i_plus = i < height_ ? i : 0;
+
 			for (int j = 0; j < width_; ++j)
 			{
 				int neighbors = 0;
+				const int j_minus = j >= 0 ? j : width_ - 1;
+				const int j_plus = i < width_ ? j : 0;
 
-				neighbors += field_minus_one_[(i - 1 + height_) % height_][j];
-				neighbors += field_minus_one_[(i + 1 + height_) % height_][j];
-				neighbors += field_minus_one_[i][(j - 1 + width_) % width_];
-				neighbors += field_minus_one_[i][(j + 1 + width_) % width_];
-				neighbors += field_minus_one_[(i - 1 + height_) % height_][(j - 1 + width_) % width_];
-				neighbors += field_minus_one_[(i + 1 + height_) % height_][(j + 1 + width_) % width_];
-				neighbors += field_minus_one_[(i - 1 + height_) % height_][(j + 1 + width_) % width_];
-				neighbors += field_minus_one_[(i + 1 + height_) % height_][(j - 1 + width_) % width_];
+				neighbors += field_minus_one_[i_minus][j];
+				neighbors += field_minus_one_[i_plus][j];
+				neighbors += field_minus_one_[i][j_minus];
+				neighbors += field_minus_one_[i][j_plus];
+				neighbors += field_minus_one_[i_minus][j_minus];
+				neighbors += field_minus_one_[i_plus][j_plus];
+				neighbors += field_minus_one_[i_minus][j_plus];
+				neighbors += field_minus_one_[i_plus][j_minus];
 
 				if (!field_minus_one_[i][j])
 				{

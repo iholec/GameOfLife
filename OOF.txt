@@ -1,0 +1,7 @@
+* 32cb616 (HEAD) c++ is weird
+* f0aaa0e how is this just randomly faster
+| * b52e0d1 (2D_array_opt, 2D_array) somehow slower
+| * 6e73fcb 1D works
+| * b24a0fd (master) reading fix
+|/
+* 2e192b1 works
