@@ -2,7 +2,9 @@
   GameOfLife.cpp
   GOLField.cpp
   Generating code
-  All 243 functions were compiled because no usable IPDB/IOBJ from previous compilation was found.
+  239 of 239 functions (100.0%) were compiled, the rest were copied from previous compilation.
+    1 functions were new in current compilation
+    0 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\Release\GameOfLife.exe
   GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\Release\GameOfLife.pdb (Full PDB)

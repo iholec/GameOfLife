@@ -188,6 +188,7 @@ int main(const int argc, char** argv)
 					for (int a = 0; a < height; ++a)
 					{
 						memcpy(board_minus_one[a], board[a], width * sizeof(char));
+
 					}
 				}
 
