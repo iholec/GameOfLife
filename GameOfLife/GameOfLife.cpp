@@ -7,7 +7,6 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-//#include "GOLField.h"
 
 
 
@@ -119,10 +118,13 @@ int main(const int argc, char** argv)
 					board_minus_one[i] = new bool[width + 1];
 					std::getline(gol_file_in, line);
 
+					bool * curr_board = board[i];
+					bool * curr_board_minus_one = board_minus_one[i];
+
 					for(int x = 0; x < width; ++x)
 					{
-						board[i][x] = (line[x] == 'x');
-						board_minus_one[i][x] = (line[x] == 'x');
+						curr_board[x] = (line[x] == 'x');
+						curr_board_minus_one[x] = (line[x] == 'x');
 
 					}
 					//std::cout << line << '\n';
@@ -148,6 +150,10 @@ int main(const int argc, char** argv)
 						const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
 						const int i_plus = i + 1 < height ? i + 1 : 0;
 
+						bool * prev_rows_minus = board_minus_one[i_minus];
+						bool * prev_rows = board_minus_one[i];
+						bool * prev_rows_plus = board_minus_one[i_plus];
+
 						for (int j = 0; j < width; ++j)
 						{
 							int neighbors = 0;
@@ -155,16 +161,16 @@ int main(const int argc, char** argv)
 							const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
 							const int j_plus = j + 1 < width ? j + 1 : 0;
 
-							neighbors += board_minus_one[i_minus][j];
-							neighbors += board_minus_one[i_plus][j];
-							neighbors += board_minus_one[i][j_minus];
-							neighbors += board_minus_one[i][j_plus];
-							neighbors += board_minus_one[i_minus][j_minus];
-							neighbors += board_minus_one[i_plus][j_plus];
-							neighbors += board_minus_one[i_minus][j_plus];
-							neighbors += board_minus_one[i_plus][j_minus];
+							neighbors += prev_rows_minus[j];
+							neighbors += prev_rows_plus[j];
+							neighbors += prev_rows[j_minus];
+							neighbors += prev_rows[j_plus];
+							neighbors += prev_rows_minus[j_minus];
+							neighbors += prev_rows_plus[j_plus];
+							neighbors += prev_rows_minus[j_plus];
+							neighbors += prev_rows_plus[j_minus];
 
-							if (!board_minus_one[i][j])
+							if (!prev_rows[j])
 							{
 								//Birth: A dead cell with exactly three live neighbors becomes a live cell.
 								if (neighbors == 3)
@@ -187,8 +193,7 @@ int main(const int argc, char** argv)
 
 					for (int a = 0; a < height; ++a)
 					{
-						memcpy(board_minus_one[a], board[a], width * sizeof(char));
-
+						memcpy(board_minus_one[a], board[a], width * sizeof(bool));
 					}
 				}
 
@@ -209,9 +214,10 @@ int main(const int argc, char** argv)
 					gol_file_out << width << "," << height << '\n';
 					for (int i = 0; i < height; ++i)
 					{
+						bool * curr_board = board[i];
 						for (int x = 0; x < width; ++x)
 						{
-							board[i][x] ? gol_file_out << 'x' : gol_file_out << '.';
+							curr_board[x] ? gol_file_out << 'x' : gol_file_out << '.';
 						}
 
 						gol_file_out << '\n';
