@@ -1,4 +1,5 @@
 // GameOfLife.cpp : Defines the entry point for the console application.
+//todo pointer switch, byte array, check if two per inner loop faster, board setting if to one if, außenkreis extra, einlesen auf einmal mit read size größe
 #include "stdafx.h"
 #include <string>
 #include <iostream> 
@@ -7,6 +8,17 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
+#include <omp.h>
+
+
+#define CL_USE_DEPRECATED_OPENCL_1_2_APIS
+#define __CL_ENABLE_EXCEPTIONS
+
+#if defined(__APPLE__) || defined(__MACOSX)
+#include <OpenCL/cl.hpp>
+#else
+#include <CL/cl.hpp>
+#endif
 
 
 
@@ -35,11 +47,35 @@ int main(const int argc, char** argv)
 	int height;
 
 	bool time_measure = false;
-	bool is_sequential = false;
 
 	std::chrono::high_resolution_clock::time_point time_start;
 	std::chrono::high_resolution_clock::time_point time_end;
 	std::chrono::high_resolution_clock::duration duration;
+
+	bool lookup[2][9] = {
+		{ 0,0,0,1,0,0,0,0,0 },
+		{ 0,0,1,1,0,0,0,0,0 }
+	};
+
+	enum Mode
+	{
+		seq,
+		omp,
+		ocl
+	};
+
+	enum Device
+	{
+		cpu,
+		gpu
+	};
+
+	Mode mode;
+	Device device;
+
+	int threads;
+	int deviceId;
+	int platformId;
 
 	//read argv
 	std::stringstream ss;
@@ -72,12 +108,54 @@ int main(const int argc, char** argv)
 			}
 			else if (arg == "--mode") 
 			{
-				std::string mode(argv[i + 1]);
-				if (mode == "seq")
+				std::string mode_string(argv[i + 1]);
+				if (mode_string == "seq")
 				{
-					is_sequential = true;
+					mode = seq;
+				}
+				else if(mode_string == "omp")
+				{
+					mode = omp;
+					ss << argv[i + 3];
+					ss >> threads;
+
+					ss.str(""); // clear the stringstream
+					ss.clear(); // clear the state flags for another conversion
+				}
+				else if(mode_string == "ocl")
+				{
+					mode = ocl;
 				}
 				++i;
+			}
+			else if (arg == "--device" && mode == ocl)
+			{
+				std::string device_string(argv[i + 1]);
+
+				if (device_string == "gpu")
+				{
+					device = gpu;
+				}
+				else if (device_string == "cpu")
+				{
+					device = cpu;
+				}
+			}
+			else if (arg == "--platformId" && mode == ocl)
+			{
+				ss << argv[i + 1];
+				ss >> platformId;
+
+				ss.str(""); // clear the stringstream
+				ss.clear(); // clear the state flags for another conversion
+			}
+			else if (arg == "--deviceId" && mode == ocl)
+			{
+				ss << argv[i + 1];
+				ss >> deviceId;
+
+				ss.str(""); // clear the stringstream
+				ss.clear(); // clear the state flags for another conversion
 			}
 		}
 
@@ -143,58 +221,181 @@ int main(const int argc, char** argv)
 				}
 
 				//compute gol
-				for (int gen = 0; gen < generations; ++gen)
+				if(mode == seq)
 				{
-					for (int i = 0; i < height; ++i)
+					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
-						const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
-						const int i_plus = i + 1 < height ? i + 1 : 0;
-
-						bool * prev_rows_minus = board_minus_one[i_minus];
-						bool * prev_rows = board_minus_one[i];
-						bool * prev_rows_plus = board_minus_one[i_plus];
-
-						for (int j = 0; j < width; ++j)
+						for (int i = 0; i < height; ++i)
 						{
-							int neighbors = 0;
+							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+							const int i_plus = i + 1 < height ? i + 1 : 0;
 
-							const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
-							const int j_plus = j + 1 < width ? j + 1 : 0;
+							bool * prev_rows_minus = board_minus_one[i_minus];
+							bool * prev_rows = board_minus_one[i];
+							bool * prev_rows_plus = board_minus_one[i_plus];
 
-							neighbors += prev_rows_minus[j];
-							neighbors += prev_rows_plus[j];
-							neighbors += prev_rows[j_minus];
-							neighbors += prev_rows[j_plus];
-							neighbors += prev_rows_minus[j_minus];
-							neighbors += prev_rows_plus[j_plus];
-							neighbors += prev_rows_minus[j_plus];
-							neighbors += prev_rows_plus[j_minus];
-
-							if (!prev_rows[j])
+							for (int j = 0; j < width; ++j)
 							{
-								//Birth: A dead cell with exactly three live neighbors becomes a live cell.
-								if (neighbors == 3)
-								{
-									board[i][j] = true;
-								}
-							}
-							else
-							{
-								//Survival: A live cell with two or three live neighbors stays alive.
-								//Death: A live cell with four or more neighbors dies from overpopulation, with one or none neighbors dies from isolation.
-								//-> if not 2 or 3 then die
-								if (!(neighbors == 3 || neighbors == 2))
-								{
-									board[i][j] = false;
-								}
+								int neighbors = 0;
+
+								const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+								const int j_plus = j + 1 < width ? j + 1 : 0;
+
+								neighbors += prev_rows_minus[j];
+								neighbors += prev_rows_plus[j];
+								neighbors += prev_rows[j_minus];
+								neighbors += prev_rows[j_plus];
+								neighbors += prev_rows_minus[j_minus];
+								neighbors += prev_rows_plus[j_plus];
+								neighbors += prev_rows_minus[j_plus];
+								neighbors += prev_rows_plus[j_minus];
+
+								board[i][j] = lookup[board[i][j]][neighbors];
 							}
 						}
-					}
 
-					for (int a = 0; a < height; ++a)
-					{
-						memcpy(board_minus_one[a], board[a], width * sizeof(bool));
+						for (int a = 0; a < height; ++a)
+						{
+							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+						}
 					}
+				}
+				else if(mode == omp)
+				{
+					if (threads > 0) {
+						omp_set_dynamic(0);
+						omp_set_num_threads(threads);
+					}
+					
+					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
+					{
+						#pragma opm paralell for
+						for (int i = 0; i < height; ++i)
+						{
+							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+							const int i_plus = i + 1 < height ? i + 1 : 0;
+
+							bool * prev_rows_minus = board_minus_one[i_minus];
+							bool * prev_rows = board_minus_one[i];
+							bool * prev_rows_plus = board_minus_one[i_plus];
+
+							for (int j = 0; j < width; ++j)
+							{
+								int neighbors = 0;
+
+								const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+								const int j_plus = j + 1 < width ? j + 1 : 0;
+
+								neighbors += prev_rows_minus[j];
+								neighbors += prev_rows_plus[j];
+								neighbors += prev_rows[j_minus];
+								neighbors += prev_rows[j_plus];
+								neighbors += prev_rows_minus[j_minus];
+								neighbors += prev_rows_plus[j_plus];
+								neighbors += prev_rows_minus[j_plus];
+								neighbors += prev_rows_plus[j_minus];
+
+								board[i][j] = lookup[board[i][j]][neighbors];
+							}
+						}
+
+						for (int a = 0; a < height; ++a)
+						{
+							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+						}
+					}
+				}
+				else if (mode == ocl)
+				{
+					const std::string KERNEL_FILE = "gol_kernel.cl";
+					cl_int err = CL_SUCCESS;
+					cl::Program program;
+					std::vector<cl::Device> devices;
+					
+					try
+					{
+						// get available platforms ( NVIDIA, Intel, AMD,...)
+						std::vector<cl::Platform> platforms;
+						cl::Platform::get(&platforms);
+						if (platforms.size() == 0)
+						{
+							std::cout << "No OpenCL platforms available!\n";
+							return 1;
+						}
+
+						// create a context and get available devices
+						cl::Platform platform = platforms[0]; // on a different machine, you may have to select a different platform!
+						cl_context_properties properties[] = { CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>((platforms[0])()), 0 };
+						cl::Context context(CL_DEVICE_TYPE_GPU, properties);
+
+						devices = context.getInfo<CL_CONTEXT_DEVICES>();
+
+						// load and build the kernel
+						std::ifstream sourceFile(KERNEL_FILE);
+						if (!sourceFile)
+						{
+							std::cout << "kernel source file " << KERNEL_FILE << " not found!" << std::endl;
+							return 1;
+						}
+
+						std::string sourceCode(
+							std::istreambuf_iterator<char>(sourceFile),
+							(std::istreambuf_iterator<char>()));
+
+						cl::Program::Sources source(1, std::make_pair(sourceCode.c_str(), sourceCode.length() + 1));
+						program = cl::Program(context, source);
+						program.build(devices);
+
+						bool * one_dim_board = board[0];
+						bool * one_dim_board_minus_one = board_minus_one[0];
+
+						//create kernels
+						cl::Kernel kernel(program, "game_of_life", &err);
+						cl::Event event;
+
+						//create one dim array for kernel from 2d array (todo might create one in read part via if instead because not hard n stuff)
+						//cl_mem one_dim_board_kernel = clCreateBuffer(/*context*/, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, width * height * sizeof(bool), one_dim_board, /*&err*/);
+						//cl_mem one_dim_board_minus_one_kernel = clCreateBuffer(/*context*/, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, width * height * sizeof(bool), one_dim_board_minus_one, /*&err*/);
+
+						kernel.setArg(0, sizeof(bool) * height * width, &one_dim_board_kernel);
+						kernel.setArg(1, sizeof(bool) * height * width, &one_dim_board_minus_one_kernel);
+
+						kernel.setArg(2, width);
+						kernel.setArg(3, height);
+						kernel.setArg(4, generations);
+
+
+						// launch kernel
+						std::cout << "Calling game of life kernel" << std::endl;
+						cl::CommandQueue queue(context, devices[0], 0, &err);
+						queue.enqueueNDRangeKernel(
+							kernel,
+							cl::NullRange,
+							cl::NDRange(4, 4),
+							cl::NullRange,
+							NULL,
+							&event);
+						event.wait();
+					}
+					catch (cl::Error err) 
+					{
+						// error handling
+						// if the kernel has failed to compile, print the error log
+						std::string s;
+						program.getBuildInfo(devices[0], CL_PROGRAM_BUILD_LOG, &s);
+						std::cout << s << std::endl;
+						program.getBuildInfo(devices[0], CL_PROGRAM_BUILD_OPTIONS, &s);
+						std::cout << s << std::endl;
+
+						std::cerr
+							<< "ERROR: "
+							<< err.what()
+							<< "("
+							<< err.err()
+							<< ")"
+							<< std::endl;
+					}
+					
 				}
 
 				//kernel time
