@@ -1,3 +1,5 @@
+#define XY_TO_INDEX(X,Y) (((Y) * width) + ( X ))
+
 __constant bool lookup[2][9] = {
 		{ 0,0,0,1,0,0,0,0,0 },
 		{ 0,0,1,1,0,0,0,0,0 }
@@ -58,23 +60,29 @@ __constant bool lookup[2][9] = {
 //	}
 //}
 
-__kernel void game_of_life_two_dim(__global const bool *prev_rows_minus, __global bool *prev_rows, __global const bool *prev_rows_plus, __global bool *boardboard, int width)
+//__kernel void game_of_life_two_dim(__global const bool *prev_rows_minus, __global bool *prev_rows, __global const bool *prev_rows_plus, __global bool *boardboard, int width)
+__kernel void game_of_life_one_dim(__global const bool *in, __global bool *out, int width, int height)
 {
 	int j = get_global_id(0);
 	int neighbors = 0;
 
-	const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
-	const int j_plus = j + 1 < width ? j + 1 : 0;
+	int y = j / width;
+	int x = j - (y * width);
 
-	neighbors += prev_rows_minus[j];
-	neighbors += prev_rows_plus[j];
-	neighbors += prev_rows[j_minus];
-	neighbors += prev_rows[j_plus];
-	neighbors += prev_rows_minus[j_minus];
-	neighbors += prev_rows_plus[j_plus];
-	neighbors += prev_rows_minus[j_plus];
-	neighbors += prev_rows_plus[j_minus];
+	int line1 = ((y - 1) < 0) ? height - 1 : (y - 1);
+	int line3 = ((y + 1) >= height) ? 0 : (y + 1);
 
-	boardboard[j] = lookup[boardboard[j]][neighbors];
+	int row1 = ((x - 1) < 0) ? width - 1 : (x - 1);
+	int row3 = ((x + 1) >= width) ? 0 : (x + 1);
 
+	neighbors += in[XY_TO_INDEX(row1, line1)];
+	neighbors += in[XY_TO_INDEX(x, line1)];
+	neighbors += in[XY_TO_INDEX(row3, line1)];
+	neighbors += in[XY_TO_INDEX(row1, y)];
+	neighbors += in[XY_TO_INDEX(row3, y)];
+	neighbors += in[XY_TO_INDEX(row1, line3)];
+	neighbors += in[XY_TO_INDEX(x, line3)];
+	neighbors += in[XY_TO_INDEX(row3, line3)];
+
+	out[j] = lookup[in[j]][neighbors];
 }
