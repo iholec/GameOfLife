@@ -1,9 +1,7 @@
-﻿  stdafx.cpp
-  GameOfLife.cpp
-d:\studium\master\1.semester\epr\uebungen\gameoflife\gameoflife\gameoflife.cpp(262): warning C4068: unknown pragma
+﻿  GameOfLife.cpp
   Generating code
-  65 of 256 functions (25.4%) were compiled, the rest were copied from previous compilation.
+  15 of 670 functions ( 2.2%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    8 functions had inline decision re-evaluated but remain unchanged
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
   GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\x64\Release\GameOfLife.exe

@@ -1,6 +1,7 @@
 // GameOfLife.cpp : Defines the entry point for the console application.
 //todo pointer switch, byte array, check if two per inner loop faster, board setting if to one if, außenkreis extra, einlesen auf einmal mit read size größe
 #include "stdafx.h"
+#include <omp.h>
 #include <string>
 #include <iostream> 
 #include <fstream> 
@@ -8,8 +9,6 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
-#include <omp.h>
-
 
 #define CL_USE_DEPRECATED_OPENCL_1_2_APIS
 #define __CL_ENABLE_EXCEPTIONS
@@ -20,9 +19,11 @@
 #include <CL/cl.hpp>
 #endif
 
+#pragma comment(lib, "OpenCL.lib")
 
 
-std::string format_time(std::chrono::high_resolution_clock::duration time) 
+
+std::string format_time(std::chrono::high_resolution_clock::duration time)
 {
 	std::chrono::hours h = std::chrono::duration_cast<std::chrono::hours>(time);
 	time -= h;
@@ -74,8 +75,8 @@ int main(const int argc, char** argv)
 	Device device;
 
 	int threads;
-	int deviceId;
-	int platformId;
+	int deviceId = 0;
+	int platformId = 0;
 
 	//read argv
 	std::stringstream ss;
@@ -88,7 +89,7 @@ int main(const int argc, char** argv)
 				load_name = argv[i + 1];
 				++i;
 			}
-			else if (arg == "--generations") 
+			else if (arg == "--generations")
 			{
 				ss << argv[i + 1];
 				ss >> generations;
@@ -97,36 +98,39 @@ int main(const int argc, char** argv)
 				ss.clear(); // clear the state flags for another conversion
 				++i;
 			}
-			else if (arg == "--save") 
+			else if (arg == "--save")
 			{
 				save_name = argv[i + 1];
 				++i;
 			}
-			else if (arg == "--measure") 
+			else if (arg == "--measure")
 			{
 				time_measure = true;
 			}
-			else if (arg == "--mode") 
+			else if (arg == "--mode")
 			{
 				std::string mode_string(argv[i + 1]);
 				if (mode_string == "seq")
 				{
 					mode = seq;
 				}
-				else if(mode_string == "omp")
+				else if (mode_string == "omp")
 				{
 					mode = omp;
-					ss << argv[i + 3];
-					ss >> threads;
-
-					ss.str(""); // clear the stringstream
-					ss.clear(); // clear the state flags for another conversion
 				}
-				else if(mode_string == "ocl")
+				else if (mode_string == "ocl")
 				{
 					mode = ocl;
 				}
 				++i;
+			}
+			else if (arg == "--threads")
+			{
+				ss << argv[i + 1];
+				ss >> threads;
+
+				ss.str(""); // clear the stringstream
+				ss.clear(); // clear the state flags for another conversion
 			}
 			else if (arg == "--device" && mode == ocl)
 			{
@@ -165,14 +169,14 @@ int main(const int argc, char** argv)
 		}
 
 		//load file 
-		if(!load_name.empty())
+		if (!load_name.empty())
 		{
 			std::string line;
 			std::ifstream gol_file_in(load_name);
 			if (gol_file_in.is_open())
 			{
 				std::getline(gol_file_in, line);
-				ss << line; 
+				ss << line;
 				std::string integer;
 				std::getline(ss, integer, ',');
 				ss >> height;
@@ -187,7 +191,7 @@ int main(const int argc, char** argv)
 				ss.str(""); // clear the stringstream
 				ss.clear(); // clear the state flags for another conversion
 
-				bool ** board = new bool * [height + 1];
+				bool ** board = new bool *[height + 1];
 				bool ** board_minus_one = new bool *[height + 1];
 
 				for (int i = 0; i < height; ++i)
@@ -199,7 +203,7 @@ int main(const int argc, char** argv)
 					bool * curr_board = board[i];
 					bool * curr_board_minus_one = board_minus_one[i];
 
-					for(int x = 0; x < width; ++x)
+					for (int x = 0; x < width; ++x)
 					{
 						curr_board[x] = (line[x] == 'x');
 						curr_board_minus_one[x] = (line[x] == 'x');
@@ -221,7 +225,7 @@ int main(const int argc, char** argv)
 				}
 
 				//compute gol
-				if(mode == seq)
+				if (mode == seq)
 				{
 					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
@@ -260,16 +264,16 @@ int main(const int argc, char** argv)
 						}
 					}
 				}
-				else if(mode == omp)
+				else if (mode == omp)
 				{
 					if (threads > 0) {
 						omp_set_dynamic(0);
 						omp_set_num_threads(threads);
 					}
-					
+
 					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
-						#pragma opm paralell for
+#pragma omp parallel for
 						for (int i = 0; i < height; ++i)
 						{
 							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
@@ -279,6 +283,7 @@ int main(const int argc, char** argv)
 							bool * prev_rows = board_minus_one[i];
 							bool * prev_rows_plus = board_minus_one[i_plus];
 
+#pragma omp parallel for
 							for (int j = 0; j < width; ++j)
 							{
 								int neighbors = 0;
@@ -298,7 +303,9 @@ int main(const int argc, char** argv)
 								board[i][j] = lookup[board[i][j]][neighbors];
 							}
 						}
-
+						//bool** temp = board;
+						//board = board_minus_one;
+						//board_minus_one = temp;
 						for (int a = 0; a < height; ++a)
 						{
 							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
@@ -311,22 +318,47 @@ int main(const int argc, char** argv)
 					cl_int err = CL_SUCCESS;
 					cl::Program program;
 					std::vector<cl::Device> devices;
-					
+
 					try
 					{
 						// get available platforms ( NVIDIA, Intel, AMD,...)
 						std::vector<cl::Platform> platforms;
 						cl::Platform::get(&platforms);
-						if (platforms.size() == 0)
+						if (platforms.empty())
 						{
 							std::cout << "No OpenCL platforms available!\n";
 							return 1;
 						}
 
+
+						if (device == gpu)
+						{
+							//todo set platform id 
+						}
+						else if (device == cpu)
+						{
+							//todo set platform id	
+						}
+
 						// create a context and get available devices
-						cl::Platform platform = platforms[0]; // on a different machine, you may have to select a different platform!
-						cl_context_properties properties[] = { CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>((platforms[0])()), 0 };
-						cl::Context context(CL_DEVICE_TYPE_GPU, properties);
+						cl::Platform platform = platforms[platformId]; // on a different machine, you may have to select a different platform!
+						cl_context_properties properties[] = { CL_CONTEXT_PLATFORM, reinterpret_cast<cl_context_properties>((platforms[platformId])()), 0 };
+
+						cl::Context context;
+
+						if (device == gpu)
+						{
+							context = cl::Context(CL_DEVICE_TYPE_GPU, properties);
+						}
+						else if (device == cpu)
+						{
+							context = cl::Context(CL_DEVICE_TYPE_CPU, properties);
+						}
+						else
+						{
+							context = cl::Context(CL_DEVICE_TYPE_ALL, properties);
+						}
+
 
 						devices = context.getInfo<CL_CONTEXT_DEVICES>();
 
@@ -346,45 +378,71 @@ int main(const int argc, char** argv)
 						program = cl::Program(context, source);
 						program.build(devices);
 
-						bool * one_dim_board = board[0];
-						bool * one_dim_board_minus_one = board_minus_one[0];
-
 						//create kernels
-						cl::Kernel kernel(program, "game_of_life", &err);
+						cl::Kernel kernel(program, "game_of_life_two_dim", &err);
 						cl::Event event;
-
-						//create one dim array for kernel from 2d array (todo might create one in read part via if instead because not hard n stuff)
-						//cl_mem one_dim_board_kernel = clCreateBuffer(/*context*/, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, width * height * sizeof(bool), one_dim_board, /*&err*/);
-						//cl_mem one_dim_board_minus_one_kernel = clCreateBuffer(/*context*/, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, width * height * sizeof(bool), one_dim_board_minus_one, /*&err*/);
-
-						kernel.setArg(0, sizeof(bool) * height * width, &one_dim_board_kernel);
-						kernel.setArg(1, sizeof(bool) * height * width, &one_dim_board_minus_one_kernel);
-
-						kernel.setArg(2, width);
-						kernel.setArg(3, height);
-						kernel.setArg(4, generations);
-
-
 						// launch kernel
-						std::cout << "Calling game of life kernel" << std::endl;
-						cl::CommandQueue queue(context, devices[0], 0, &err);
-						queue.enqueueNDRangeKernel(
-							kernel,
-							cl::NullRange,
-							cl::NDRange(4, 4),
-							cl::NullRange,
-							NULL,
-							&event);
-						event.wait();
+						cl::CommandQueue queue(context, devices[deviceId], 0, &err);
+
+
+						cl::Buffer prev_rows_minus_buffer = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(bool) * (width + 1));
+						cl::Buffer prev_rows_buffer = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(bool) * (width + 1));
+						cl::Buffer prev_rows_plus_buffer = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(bool) *(width + 1));
+
+						// output buffers
+						cl::Buffer board_i_buffer = cl::Buffer(context, CL_MEM_WRITE_ONLY, sizeof(bool) * (width + 1));
+
+						for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
+						{
+							for (int i = 0; i < height; ++i)
+							{
+								const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+								const int i_plus = i + 1 < height ? i + 1 : 0;
+
+								bool * prev_rows_minus = board_minus_one[i_minus];
+								bool * prev_rows = board_minus_one[i];
+								bool * prev_rows_plus = board_minus_one[i_plus];
+
+
+
+
+								// fill buffers
+								queue.enqueueWriteBuffer(prev_rows_minus_buffer, CL_FALSE, 0, sizeof(bool) * (width + 1), &prev_rows_minus); // pointer to input
+								queue.enqueueWriteBuffer(prev_rows_buffer, CL_FALSE, 0, sizeof(bool) * (width + 1), &prev_rows); // pointer to input
+								queue.enqueueWriteBuffer(prev_rows_plus_buffer, CL_FALSE, 0, sizeof(bool) * (width + 1), &prev_rows_plus); // pointer to input
+
+								kernel.setArg(0, prev_rows_minus_buffer);
+								kernel.setArg(1, prev_rows_buffer);
+								kernel.setArg(2, prev_rows_plus_buffer);
+								kernel.setArg(3, board_i_buffer);
+
+								kernel.setArg(4, width);
+
+								cl::NDRange global(width);
+
+								queue.enqueueNDRangeKernel(kernel, cl::NullRange, cl::NDRange(width), cl::NullRange, nullptr, &event);
+
+								event.wait();
+
+								// read back result
+								queue.enqueueReadBuffer(board_i_buffer, CL_FALSE, 0, sizeof(bool) * (width + 1), &board[i]);
+
+							}
+							std::cout << gen << std::endl;
+							//for (int a = 0; a < height; ++a)
+							//{
+							//	memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+							//}
+						}
 					}
-					catch (cl::Error err) 
+					catch (cl::Error err)
 					{
 						// error handling
 						// if the kernel has failed to compile, print the error log
 						std::string s;
-						program.getBuildInfo(devices[0], CL_PROGRAM_BUILD_LOG, &s);
+						program.getBuildInfo(devices[deviceId], CL_PROGRAM_BUILD_LOG, &s);
 						std::cout << s << std::endl;
-						program.getBuildInfo(devices[0], CL_PROGRAM_BUILD_OPTIONS, &s);
+						program.getBuildInfo(devices[deviceId], CL_PROGRAM_BUILD_OPTIONS, &s);
 						std::cout << s << std::endl;
 
 						std::cerr
@@ -395,7 +453,7 @@ int main(const int argc, char** argv)
 							<< ")"
 							<< std::endl;
 					}
-					
+
 				}
 
 				//kernel time
@@ -407,7 +465,7 @@ int main(const int argc, char** argv)
 
 					time_start = std::chrono::high_resolution_clock::now();
 				}
-				
+
 				//write to file
 				if (!save_name.empty())
 				{
@@ -447,11 +505,10 @@ int main(const int argc, char** argv)
 			}
 
 			else std::cout << "Unable to open file";
-
 		}
 	}
 
-    return 0;
+	return 0;
 }
 
 

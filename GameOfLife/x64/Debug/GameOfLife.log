@@ -1,6 +1,2 @@
-﻿  stdafx.cpp
-  GOLField.cpp
-  GameOfLife.cpp
-  Generating Code...
+﻿  GameOfLife.cpp
   GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\x64\Debug\GameOfLife.exe
-  GameOfLife.vcxproj -> D:\Studium\Master\1.Semester\EPR\Uebungen\GameOfLife\x64\Debug\GameOfLife.pdb (Partial PDB)
