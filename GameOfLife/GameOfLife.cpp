@@ -198,20 +198,31 @@ int main(const int argc, char** argv)
 				bufferdBoard[0] = new bool[height*width];
 				bufferdBoard[1] = new bool[height*width];
 
+				bool ** board = new bool *[height + 1];
+				bool ** board_minus_one = new bool *[height + 1];
+
 				bool mapSwitch = false;
 
 				for (int i = 0; i < height; ++i)
 				{
+					board[i] = new bool[width + 1];
+					board_minus_one[i] = new bool[width + 1];
 					std::getline(gol_file_in, line);
 
+					bool * curr_board = board[i];
+					bool * curr_board_minus_one = board_minus_one[i];
+					
 					for (int x = 0; x < width; ++x)
 					{
+						curr_board[x] = (line[x] == 'x');
+						curr_board_minus_one[x] = (line[x] == 'x');
+						
 						bufferdBoard[0][XY_TO_INDEX(x, i)] = (line[x] == 'x');
 						bufferdBoard[1][XY_TO_INDEX(x, i)] = (line[x] == 'x');
 
 					}
 				}
-
+				
 				gol_file_in.close();
 
 				//init time
@@ -229,33 +240,39 @@ int main(const int argc, char** argv)
 				{
 					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
-						bool * temp_board = bufferdBoard[mapSwitch];
-
 						for (int i = 0; i < height; ++i)
 						{
-							int line1 = ((i - 1) < 0) ? height - 1 : (i - 1);
-							int line3 = ((i + 1) >= height) ? 0 : (i + 1);
-							
+							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+							const int i_plus = i + 1 < height ? i + 1 : 0;
+
+							bool * prev_rows_minus = board_minus_one[i_minus];
+							bool * prev_rows = board_minus_one[i];
+							bool * prev_rows_plus = board_minus_one[i_plus];
+
 							for (int j = 0; j < width; ++j)
 							{
 								int neighbors = 0;
 
-								int row1 = ((j - 1) < 0) ? width - 1 : (j - 1);
-								int row3 = ((j + 1) >= width) ? 0 : (j + 1);
+								const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+								const int j_plus = j + 1 < width ? j + 1 : 0;
 
-								neighbors += temp_board[XY_TO_INDEX(row1, line1)];
-								neighbors += temp_board[XY_TO_INDEX(j, line1)];
-								neighbors += temp_board[XY_TO_INDEX(row3, line1)];
-								neighbors += temp_board[XY_TO_INDEX(row1, i)];
-								neighbors += temp_board[XY_TO_INDEX(row3, i)];
-								neighbors += temp_board[XY_TO_INDEX(row1, line3)];
-								neighbors += temp_board[XY_TO_INDEX(j, line3)];
-								neighbors += temp_board[XY_TO_INDEX(row3, line3)];
-								
-								bufferdBoard[!mapSwitch][XY_TO_INDEX(j,i)] = lookup[temp_board[XY_TO_INDEX(j, i)]][neighbors];
+								neighbors += prev_rows_minus[j];
+								neighbors += prev_rows_plus[j];
+								neighbors += prev_rows[j_minus];
+								neighbors += prev_rows[j_plus];
+								neighbors += prev_rows_minus[j_minus];
+								neighbors += prev_rows_plus[j_plus];
+								neighbors += prev_rows_minus[j_plus];
+								neighbors += prev_rows_plus[j_minus];
+
+								board[i][j] = lookup[board[i][j]][neighbors];
 							}
 						}
-						mapSwitch = !mapSwitch;
+
+						for (int a = 0; a < height; ++a)
+						{
+							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+						}
 					}
 				}
 				else if (mode == omp)
@@ -267,36 +284,43 @@ int main(const int argc, char** argv)
 
 					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
-						bool * temp_board = bufferdBoard[mapSwitch];
-
 						#pragma omp parallel for
 						for (int i = 0; i < height; ++i)
 						{
-							int line1 = ((i - 1) < 0) ? height - 1 : (i - 1);
-							int line3 = ((i + 1) >= height) ? 0 : (i + 1);
+							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+							const int i_plus = i + 1 < height ? i + 1 : 0;
+
+							bool * prev_rows_minus = board_minus_one[i_minus];
+							bool * prev_rows = board_minus_one[i];
+							bool * prev_rows_plus = board_minus_one[i_plus];
 
 							#pragma omp parallel for
 							for (int j = 0; j < width; ++j)
 							{
 								int neighbors = 0;
 
-								int row1 = ((j - 1) < 0) ? width - 1 : (j - 1);
-								int row3 = ((j + 1) >= width) ? 0 : (j + 1);
+								const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+								const int j_plus = j + 1 < width ? j + 1 : 0;
 
-								neighbors += temp_board[XY_TO_INDEX(row1, line1)];
-								neighbors += temp_board[XY_TO_INDEX(j, line1)];
-								neighbors += temp_board[XY_TO_INDEX(row3, line1)];
-								neighbors += temp_board[XY_TO_INDEX(row1, i)];
-								neighbors += temp_board[XY_TO_INDEX(row3, i)];
-								neighbors += temp_board[XY_TO_INDEX(row1, line3)];
-								neighbors += temp_board[XY_TO_INDEX(j, line3)];
-								neighbors += temp_board[XY_TO_INDEX(row3, line3)];
+								neighbors += prev_rows_minus[j];
+								neighbors += prev_rows_plus[j];
+								neighbors += prev_rows[j_minus];
+								neighbors += prev_rows[j_plus];
+								neighbors += prev_rows_minus[j_minus];
+								neighbors += prev_rows_plus[j_plus];
+								neighbors += prev_rows_minus[j_plus];
+								neighbors += prev_rows_plus[j_minus];
 
-								//TODO !mapSwitch = out buffer mapSwitch = in buffer
-								bufferdBoard[!mapSwitch][XY_TO_INDEX(j, i)] = lookup[temp_board[XY_TO_INDEX(j, i)]][neighbors];
+								board[i][j] = lookup[board[i][j]][neighbors];
 							}
 						}
-						mapSwitch = !mapSwitch;
+						//bool** temp = board;
+						//board = board_minus_one;
+						//board_minus_one = temp;
+						for (int a = 0; a < height; ++a)
+						{
+							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+						}
 					}
 				}
 				else if (mode == ocl)
@@ -440,7 +464,7 @@ int main(const int argc, char** argv)
 
 								queue.enqueueWriteBuffer(in, CL_FALSE, 0, map_byte_size, bufferdBoard[mapSwitch]); // pointer to input
 
-								queue.enqueueNDRangeKernel(kernel, cl::NullRange, global, local);
+								queue.enqueueNDRangeKernel(kernel, 0, global, cl::NullRange, NULL, &event);
 
 								event.wait();
 								
@@ -483,23 +507,57 @@ int main(const int argc, char** argv)
 				}
 
 				//write to file
-				if (!save_name.empty())
+
+				if(mode == ocl)
 				{
-					std::ofstream gol_file_out(save_name);
-					gol_file_out << width << "," << height << '\n';
-					for (int i = 0; i < height; ++i)
+					if (!save_name.empty())
 					{
-						for (int x = 0; x < width; ++x)
+						std::ofstream gol_file_out(save_name);
+						gol_file_out << width << "," << height << '\n';
+						for (int i = 0; i < height; ++i)
 						{
-							bufferdBoard[mapSwitch][XY_TO_INDEX(x,i)] ? gol_file_out << 'x' : gol_file_out << '.';
+							for (int x = 0; x < width; ++x)
+							{
+								bufferdBoard[mapSwitch][XY_TO_INDEX(x, i)] ? gol_file_out << 'x' : gol_file_out << '.';
+							}
+
+							gol_file_out << '\n';
 						}
 
-						gol_file_out << '\n';
+						gol_file_out.close();
 					}
+				}
+				else
+				{
+					if (!save_name.empty())
+					{
+						std::ofstream gol_file_out(save_name);
+						gol_file_out << width << "," << height << '\n';
+						for (int i = 0; i < height; ++i)
+						{
+							bool * curr_board = board[i];
+							for (int x = 0; x < width; ++x)
+							{
+								curr_board[x] ? gol_file_out << 'x' : gol_file_out << '.';
+							}
 
-					gol_file_out.close();
+							gol_file_out << '\n';
+						}
+
+						gol_file_out.close();
+					}
 				}
 
+				//delete it all
+				//Free each sub-array
+				for (int i = 0; i < height; ++i) {
+					delete[] board[i];
+					delete[] board_minus_one[i];
+				}
+				
+				//Free the array of pointers
+				delete[] board;
+				delete[] board_minus_one;
 
 				delete[] bufferdBoard[0];
 				delete[] bufferdBoard[1];
