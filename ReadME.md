@@ -1,6 +1,6 @@
-## An efficient imlementation of the Game of Life in C++
+# An efficient implementation of the Game of Life in C++
 	
-# Usage
+## Usage
 
 	- --load NAME (where NAME is a filename with the extension ’.gol’)
 	- Number of generations to compute: --generations NUM (where NUM is a number).
@@ -15,3 +15,5 @@
 	- --device cpu|gpu (automatically selects platform & device)
 	- --platformId NUM (user-defined selection of platform)
 	- --deviceId NUM (user-defined selection of device on platform)
+
+#### Includes test files and sample measurements
