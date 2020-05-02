@@ -1,11 +1,11 @@
-##An efficient imlementation of the Game of Life in C++
+## An efficient imlementation of the Game of Life in C++
 
-#Includes two Versions 
+# Includes two Versions 
 
 	- ('Abgabe 1'): No Parallelisation
 	- ('Abgabe 2'): Parallelisation with OpenCL (CPU and GPU, testet on NVIDIA Graphics Card with Cuda) and OpenMP
 	
-#Usage
+# Usage
 
 	- --mode seq (select sequential version (Abgabe 1))
 	- --mode omp --threads <NUM> (select parallel OpenMP version)
