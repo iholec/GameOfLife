@@ -44,15 +44,21 @@ int main(const int argc, char** argv)
 {
 	std::string load_name;
 	std::string save_name;
+
 	int generations;
 	int width;
 	int height;
 
 	bool time_measure = false;
+<<<<<<< HEAD
+=======
+	bool is_sequential = false;
+>>>>>>> master
 
 	std::chrono::high_resolution_clock::time_point time_start;
 	std::chrono::high_resolution_clock::time_point time_end;
 	std::chrono::high_resolution_clock::duration duration;
+<<<<<<< HEAD
 
 	bool lookup[2][9] = {
 		{ 0,0,0,1,0,0,0,0,0 },
@@ -79,6 +85,8 @@ int main(const int argc, char** argv)
 	int threads;
 	int deviceId = 0;
 	int platformId = 0;
+=======
+>>>>>>> master
 
 	//read argv
 	std::stringstream ss;
@@ -105,8 +113,12 @@ int main(const int argc, char** argv)
 				save_name = argv[i + 1];
 				++i;
 			}
+<<<<<<< HEAD
 			else if (arg == "--measure")
 			{
+=======
+			else if (arg == "--measure") {
+>>>>>>> master
 				time_measure = true;
 			}
 			else if (arg == "--mode")
@@ -114,6 +126,7 @@ int main(const int argc, char** argv)
 				std::string mode_string(argv[i + 1]);
 				if (mode_string == "seq")
 				{
+<<<<<<< HEAD
 					mode = seq;
 				}
 				else if (mode_string == "omp")
@@ -123,6 +136,9 @@ int main(const int argc, char** argv)
 				else if (mode_string == "ocl")
 				{
 					mode = ocl;
+=======
+					is_sequential = true;
+>>>>>>> master
 				}
 				++i;
 			}
@@ -170,6 +186,11 @@ int main(const int argc, char** argv)
 			time_start = std::chrono::high_resolution_clock::now();
 		}
 
+		if(time_measure)
+		{
+			time_start = std::chrono::high_resolution_clock::now();
+		}
+
 		//load file 
 		if (!load_name.empty())
 		{
@@ -193,6 +214,7 @@ int main(const int argc, char** argv)
 				ss.str(""); // clear the stringstream
 				ss.clear(); // clear the state flags for another conversion
 
+<<<<<<< HEAD
 				bool ** bufferdBoard;
 				bufferdBoard = new bool*[2];
 				bufferdBoard[0] = new bool[height*width];
@@ -202,9 +224,14 @@ int main(const int argc, char** argv)
 				bool ** board_minus_one = new bool *[height + 1];
 
 				bool mapSwitch = false;
+=======
+				char * board = new char [(width * height) + 1];//todo improve, make 1D with  int array[width * height + 1]; int SetElement(int row, int col, int value){ array[width * row + col] = value};
+				board[width * height] = '\0';
+>>>>>>> master
 
-				for (int i = 0; i < height; ++i)
+				for (int i = 0; i < (width * height); i += width)
 				{
+<<<<<<< HEAD
 					board[i] = new bool[width + 1];
 					board_minus_one[i] = new bool[width + 1];
 					std::getline(gol_file_in, line);
@@ -227,10 +254,23 @@ int main(const int argc, char** argv)
 
 				//init time
 				if (time_measure && mode != ocl)
+=======
+					std::getline(gol_file_in, line);
+					std::memcpy(board + i, line.c_str(), width * sizeof(char));
+				}
+
+				//std::cout << board;
+
+				gol_file_in.close();
+
+				//init time
+				if (time_measure)
+>>>>>>> master
 				{
 					time_end = std::chrono::high_resolution_clock::now();
 					duration = std::chrono::high_resolution_clock::duration(time_end - time_start);
 					std::cout << format_time(duration) << "; ";
+<<<<<<< HEAD
 
 					time_start = std::chrono::high_resolution_clock::now();
 				}
@@ -497,6 +537,15 @@ int main(const int argc, char** argv)
 					}
 
 				}
+=======
+
+					time_start = std::chrono::high_resolution_clock::now();
+				}
+
+				//create and compute gol
+				//GOLField* golf = new GOLField(board, width, height);
+				//board = golf->life(generations);
+>>>>>>> master
 
 				//kernel time
 				if (time_measure)
@@ -561,10 +610,14 @@ int main(const int argc, char** argv)
 				delete[] board;
 				delete[] board_minus_one;
 
+<<<<<<< HEAD
 				delete[] bufferdBoard[0];
 				delete[] bufferdBoard[1];
 
 				delete[] bufferdBoard;
+=======
+				//delete golf;
+>>>>>>> master
 
 				//finalize time
 				if (time_measure)
