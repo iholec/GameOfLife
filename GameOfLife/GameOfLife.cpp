@@ -284,42 +284,45 @@ int main(const int argc, char** argv)
 
 					for (int gen = 0; gen < generations; ++gen) //todo handle edge cases alone
 					{
-						#pragma omp parallel for
-						for (int i = 0; i < height; ++i)
+						# pragma omp parallel
 						{
-							const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
-							const int i_plus = i + 1 < height ? i + 1 : 0;
-
-							bool * prev_rows_minus = board_minus_one[i_minus];
-							bool * prev_rows = board_minus_one[i];
-							bool * prev_rows_plus = board_minus_one[i_plus];
-
-							#pragma omp parallel for
-							for (int j = 0; j < width; ++j)
+							#pragma omp for
+							for (int i = 0; i < height; ++i)
 							{
-								int neighbors = 0;
+								const int i_minus = i - 1 >= 0 ? i - 1 : height - 1;
+								const int i_plus = i + 1 < height ? i + 1 : 0;
 
-								const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
-								const int j_plus = j + 1 < width ? j + 1 : 0;
+								bool * prev_rows_minus = board_minus_one[i_minus];
+								bool * prev_rows = board_minus_one[i];
+								bool * prev_rows_plus = board_minus_one[i_plus];
 
-								neighbors += prev_rows_minus[j];
-								neighbors += prev_rows_plus[j];
-								neighbors += prev_rows[j_minus];
-								neighbors += prev_rows[j_plus];
-								neighbors += prev_rows_minus[j_minus];
-								neighbors += prev_rows_plus[j_plus];
-								neighbors += prev_rows_minus[j_plus];
-								neighbors += prev_rows_plus[j_minus];
+								for (int j = 0; j < width; ++j)
+								{
+									int neighbors = 0;
 
-								board[i][j] = lookup[board[i][j]][neighbors];
+									const int j_minus = j - 1 >= 0 ? j - 1 : width - 1;
+									const int j_plus = j + 1 < width ? j + 1 : 0;
+
+									neighbors += prev_rows_minus[j];
+									neighbors += prev_rows_plus[j];
+									neighbors += prev_rows[j_minus];
+									neighbors += prev_rows[j_plus];
+									neighbors += prev_rows_minus[j_minus];
+									neighbors += prev_rows_plus[j_plus];
+									neighbors += prev_rows_minus[j_plus];
+									neighbors += prev_rows_plus[j_minus];
+
+									board[i][j] = lookup[board[i][j]][neighbors];
+								}
 							}
-						}
-						//bool** temp = board;
-						//board = board_minus_one;
-						//board_minus_one = temp;
-						for (int a = 0; a < height; ++a)
-						{
-							memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+							//bool** temp = board;
+							//board = board_minus_one;
+							//board_minus_one = temp;
+							#pragma omp for
+							for (int a = 0; a < height; ++a)
+							{
+								memcpy(board_minus_one[a], board[a], width * sizeof(bool)); //todo pointer swap
+							}
 						}
 					}
 				}
@@ -430,7 +433,7 @@ int main(const int argc, char** argv)
 						kernel.setArg(3, height);
 						
 						cl::NDRange global(mapSize);
-						cl::NDRange local(250); //Unterteilung der arbeitspakete (Threads??)
+						cl::NDRange local(250); //Unterteilung der arbeitspakete
 
 						if (time_measure)
 						{
@@ -473,7 +476,6 @@ int main(const int argc, char** argv)
 								mapSwitch = !mapSwitch;
 							}
 						}
-						
 					}
 					catch (cl::Error err)
 					{
